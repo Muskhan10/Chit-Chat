@@ -8,157 +8,72 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { MessageCircle, User, Mail, Lock, AlertCircle } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { MessageCircle, User, Mail, Lock } from "lucide-react"
 import type { User as UserType } from "@/app/page"
 
 interface LoginFormProps {
   onLogin: (user: UserType) => void
-  databaseReady: boolean
 }
 
-export function LoginForm({ onLogin, databaseReady }: LoginFormProps) {
+export function LoginForm({ onLogin }: LoginFormProps) {
   const [loginData, setLoginData] = useState({ email: "", password: "" })
   const [registerData, setRegisterData] = useState({ name: "", email: "", password: "" })
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setLoading(true)
 
-    try {
-      // Check for admin login
-      if (loginData.email === "admin@gmail.com" && loginData.password === "admin123") {
-        onLogin({
-          id: "admin",
-          name: "Admin",
-          email: "admin@gmail.com",
-          isAdmin: true,
-        })
-        return
-      }
-
-      if (databaseReady) {
-        // Try database login
-        const { data: users, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("email", loginData.email)
-          .eq("password_hash", loginData.password)
-          .single()
-
-        if (error || !users) {
-          setError("Invalid email or password")
-          return
-        }
-
-        onLogin({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          isAdmin: users.is_admin,
-        })
-      } else {
-        // Fallback to localStorage
-        const users = JSON.parse(localStorage.getItem("users") || "[]")
-        const user = users.find((u: any) => u.email === loginData.email && u.password === loginData.password)
-
-        if (user) {
-          onLogin({
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            isAdmin: user.isAdmin || false,
-          })
-        } else {
-          setError("Invalid email or password")
-        }
-      }
-    } catch (err) {
-      setError("Login failed. Please try again.")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-
-    if (!registerData.name || !registerData.email || !registerData.password) {
-      setError("Please fill in all fields")
-      setLoading(false)
+    // Check for admin login
+    if (loginData.email === "admin@gmail.com" && loginData.password === "admin123") {
+      onLogin({
+        id: "admin",
+        name: "Admin",
+        email: "admin@gmail.com",
+        isAdmin: true,
+      })
       return
     }
 
-    try {
-      if (databaseReady) {
-        // Try database registration
-        const { data: existingUser } = await supabase
-          .from("users")
-          .select("id")
-          .eq("email", registerData.email)
-          .single()
+    // Check for regular user login
+    const users = JSON.parse(localStorage.getItem("users") || "[]")
+    const user = users.find((u: any) => u.email === loginData.email && u.password === loginData.password)
 
-        if (existingUser) {
-          setError("User with this email already exists")
-          setLoading(false)
-          return
-        }
-
-        const { data: newUser, error } = await supabase
-          .from("users")
-          .insert({
-            name: registerData.name,
-            email: registerData.email,
-            password_hash: registerData.password,
-            is_admin: false,
-          })
-          .select()
-          .single()
-
-        if (error || !newUser) {
-          setError("Registration failed. Please try again.")
-          return
-        }
-
-        onLogin({
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          isAdmin: newUser.is_admin,
-        })
-      } else {
-        // Fallback to localStorage
-        const users = JSON.parse(localStorage.getItem("users") || "[]")
-
-        if (users.find((u: any) => u.email === registerData.email)) {
-          setError("User with this email already exists")
-          setLoading(false)
-          return
-        }
-
-        const newUser: UserType = {
-          id: Date.now().toString(),
-          name: registerData.name,
-          email: registerData.email,
-          isAdmin: false,
-        }
-
-        const updatedUsers = [...users, { ...newUser, password: registerData.password }]
-        localStorage.setItem("users", JSON.stringify(updatedUsers))
-
-        onLogin(newUser)
-      }
-    } catch (err) {
-      setError("Registration failed. Please try again.")
-    } finally {
-      setLoading(false)
+    if (user) {
+      onLogin(user)
+    } else {
+      setError("Invalid email or password")
     }
+  }
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+
+    if (!registerData.name || !registerData.email || !registerData.password) {
+      setError("Please fill in all fields")
+      return
+    }
+
+    const users = JSON.parse(localStorage.getItem("users") || "[]")
+
+    // Check if user already exists
+    if (users.find((u: any) => u.email === registerData.email)) {
+      setError("User with this email already exists")
+      return
+    }
+
+    const newUser: UserType = {
+      id: Date.now().toString(),
+      name: registerData.name,
+      email: registerData.email,
+      isAdmin: false,
+    }
+
+    const updatedUsers = [...users, { ...newUser, password: registerData.password }]
+    localStorage.setItem("users", JSON.stringify(updatedUsers))
+
+    onLogin(newUser)
   }
 
   return (
@@ -178,13 +93,6 @@ export function LoginForm({ onLogin, databaseReady }: LoginFormProps) {
           </div>
         </CardHeader>
         <CardContent>
-          {!databaseReady && (
-            <Alert className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>Running in offline mode. Data will be stored locally.</AlertDescription>
-            </Alert>
-          )}
-
           <Tabs defaultValue="login" className="space-y-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
@@ -205,7 +113,6 @@ export function LoginForm({ onLogin, databaseReady }: LoginFormProps) {
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                       required
-                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -221,7 +128,6 @@ export function LoginForm({ onLogin, databaseReady }: LoginFormProps) {
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       required
-                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -229,9 +135,8 @@ export function LoginForm({ onLogin, databaseReady }: LoginFormProps) {
                 <Button
                   type="submit"
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                  disabled={loading}
                 >
-                  {loading ? "Logging in..." : "Login"}
+                  Login
                 </Button>
               </form>
             </TabsContent>
@@ -250,7 +155,6 @@ export function LoginForm({ onLogin, databaseReady }: LoginFormProps) {
                       value={registerData.name}
                       onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
                       required
-                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -266,7 +170,6 @@ export function LoginForm({ onLogin, databaseReady }: LoginFormProps) {
                       value={registerData.email}
                       onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                       required
-                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -282,7 +185,6 @@ export function LoginForm({ onLogin, databaseReady }: LoginFormProps) {
                       value={registerData.password}
                       onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                       required
-                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -290,9 +192,8 @@ export function LoginForm({ onLogin, databaseReady }: LoginFormProps) {
                 <Button
                   type="submit"
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                  disabled={loading}
                 >
-                  {loading ? "Registering..." : "Register"}
+                  Register
                 </Button>
               </form>
             </TabsContent>
