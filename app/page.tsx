@@ -20,11 +20,30 @@ export interface Message {
   timestamp: Date
   isPrivate?: boolean
   targetUserId?: string
+  reactions?: MessageReaction[]
+  seenBy?: MessageSeen[]
+}
+
+export interface MessageReaction {
+  id: string
+  messageId: string
+  userId: string
+  userName: string
+  emoji: string
+}
+
+export interface MessageSeen {
+  id: string
+  messageId: string
+  userId: string
+  userName: string
+  seenAt: Date
 }
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Check if user is already logged in
@@ -32,6 +51,7 @@ export default function Home() {
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser))
     }
+    setLoading(false)
   }, [])
 
   const handleLogin = (user: User) => {
@@ -43,6 +63,17 @@ export default function Home() {
     setCurrentUser(null)
     localStorage.removeItem("currentUser")
     setShowAdminPanel(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!currentUser) {

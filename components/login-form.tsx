@@ -19,61 +19,83 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   const [loginData, setLoginData] = useState({ email: "", password: "" })
   const [registerData, setRegisterData] = useState({ name: "", email: "", password: "" })
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setLoading(true)
 
-    // Check for admin login
-    if (loginData.email === "admin@gmail.com" && loginData.password === "admin123") {
-      onLogin({
-        id: "admin",
-        name: "Admin",
-        email: "admin@gmail.com",
-        isAdmin: true,
-      })
-      return
-    }
+    try {
+      // Check for admin login
+      if (loginData.email === "admin@gmail.com" && loginData.password === "admin123") {
+        onLogin({
+          id: "admin",
+          name: "Admin",
+          email: "admin@gmail.com",
+          isAdmin: true,
+        })
+        return
+      }
 
-    // Check for regular user login
-    const users = JSON.parse(localStorage.getItem("users") || "[]")
-    const user = users.find((u: any) => u.email === loginData.email && u.password === loginData.password)
+      // Check for regular user login
+      const users = JSON.parse(localStorage.getItem("users") || "[]")
+      const user = users.find((u: any) => u.email === loginData.email && u.password === loginData.password)
 
-    if (user) {
-      onLogin(user)
-    } else {
-      setError("Invalid email or password")
+      if (user) {
+        onLogin({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          isAdmin: user.isAdmin || false,
+        })
+      } else {
+        setError("Invalid email or password")
+      }
+    } catch (err) {
+      setError("Login failed. Please try again.")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setLoading(true)
 
     if (!registerData.name || !registerData.email || !registerData.password) {
       setError("Please fill in all fields")
+      setLoading(false)
       return
     }
 
-    const users = JSON.parse(localStorage.getItem("users") || "[]")
+    try {
+      const users = JSON.parse(localStorage.getItem("users") || "[]")
 
-    // Check if user already exists
-    if (users.find((u: any) => u.email === registerData.email)) {
-      setError("User with this email already exists")
-      return
+      // Check if user already exists
+      if (users.find((u: any) => u.email === registerData.email)) {
+        setError("User with this email already exists")
+        setLoading(false)
+        return
+      }
+
+      const newUser: UserType = {
+        id: Date.now().toString(),
+        name: registerData.name,
+        email: registerData.email,
+        isAdmin: false,
+      }
+
+      const updatedUsers = [...users, { ...newUser, password: registerData.password }]
+      localStorage.setItem("users", JSON.stringify(updatedUsers))
+
+      onLogin(newUser)
+    } catch (err) {
+      setError("Registration failed. Please try again.")
+    } finally {
+      setLoading(false)
     }
-
-    const newUser: UserType = {
-      id: Date.now().toString(),
-      name: registerData.name,
-      email: registerData.email,
-      isAdmin: false,
-    }
-
-    const updatedUsers = [...users, { ...newUser, password: registerData.password }]
-    localStorage.setItem("users", JSON.stringify(updatedUsers))
-
-    onLogin(newUser)
   }
 
   return (
@@ -113,6 +135,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -128,6 +151,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -135,8 +159,9 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                 <Button
                   type="submit"
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  disabled={loading}
                 >
-                  Login
+                  {loading ? "Logging in..." : "Login"}
                 </Button>
               </form>
             </TabsContent>
@@ -155,6 +180,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                       value={registerData.name}
                       onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -170,6 +196,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                       value={registerData.email}
                       onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -185,6 +212,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                       value={registerData.password}
                       onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -192,8 +220,9 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                 <Button
                   type="submit"
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  disabled={loading}
                 >
-                  Register
+                  {loading ? "Registering..." : "Register"}
                 </Button>
               </form>
             </TabsContent>
